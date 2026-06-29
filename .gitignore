@@ -20,3 +20,16 @@ Two-sample_intensities/two_stage/PI_circle_data/data_pi_twocircle_constant.Rdata
 Two-sample_intensities/two_stage/PI_circle_data/data_pi_onecircle_arctan.Rdata
 Two-sample_intensities/two_stage/PI_circle_data/data_pi_onecircle_linear.Rdata
 Two-sample_intensities/json/npc=50_nset=100torus_pd.json
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# JetBrains IDE
+.idea/
+**/.idea/
+
