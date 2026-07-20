@@ -16,7 +16,7 @@ __pycache__/
 venv/
 env/
 
-# macOS 
+# macOS
 .DS_Store
 
 # R
