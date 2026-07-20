@@ -21,3 +21,6 @@ env/
 
 # R
 .Rhistory
+.RDataTmp*
+.Rhistory
+.Rproj.user/
