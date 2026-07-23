@@ -4,7 +4,7 @@ library(parallel)
 library(gtools)
 
 #This code is obtained from https://github.com/chulmoon/HT-VecPD.
-
+# Modifications were made for the experiments in the present paper.
 ###############################################################
 # Functions for persistence image
 ###############################################################
