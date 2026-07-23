@@ -23,7 +23,7 @@ linearw=function(pd) {
 
 # poly weight
 polyweight=function(pd,n){
-  return((pd$death)^n)
+  return((pd$death)^n) #in this code, pd$death contains points representing not death but death-birth. 
 }
 
 pers.image = function(pd, rangex, rangey, wgt, nbins, h){

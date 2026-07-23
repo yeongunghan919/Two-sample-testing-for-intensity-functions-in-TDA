@@ -27,12 +27,10 @@ for (ii in 1:6){
     pd1$death = pd1$death - pd1$birth
     
     # weights
-    arctanweight = arctanw(pd1,0.5,0.5)
-    linearweight = linearw(pd1)
     rootweight = polyweight(pd1,n=1/2)
     
     # compute persistence image
-    pi1_root=pers.image(pd=pd1, rangex=rangex, rangey=rangey, wgt=rep(1,nrow(pd1)), nbins=res, h=h)
+    pi1_root=pers.image(pd=pd1, rangex=rangex, rangey=rangey, wgt=rootweight, nbins=res, h=h)
     torus_pi_root[[ii]][[jj]] = pi1_root
   }
 }

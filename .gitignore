@@ -1,12 +1,12 @@
 # Large data directories 
 
-data/
-PI_orbit5k_data/ 
-PI_circle_data/ 
-PI_Torus_data/
-Torus_PL_list.pkl
-/Per_Image_testing/.RData
-/Per_Image_testing/.RDataTmp*
+#Data
+*.pkl
+*.RData
+.RDataTmp*
+*.json
+*.csv
+*.npy
 #Python 
 __pycache__/
 *.py[cod]
