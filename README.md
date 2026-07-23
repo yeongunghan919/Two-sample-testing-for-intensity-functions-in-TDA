@@ -51,7 +51,7 @@ The implementation of the aggregation procedure is adapted from the MMDAgg code 
 
 ### `simulations/`
 
-Contains all scripts for the simulation studies.
+This directory contains scripts for the simulation studies.
 
 - `Circles/` – Circles simulation experiment.
 - `Instrument/` – Musical instrument experiment (flute vs. clarinet).
@@ -60,19 +60,17 @@ Contains all scripts for the simulation studies.
 
 ### `Per_Image_testing/`
 
-Implementation of the persistence image two-sample test (Moon and Lazar, 2023).
+This directory contains the implementation of the persistence image two-sample test.
 The implementation of the two-stage two-sample testing method is adapted from the code of Moon and Lazar (2023).
-This directory contains the implementation of the two-stage testing method based on persistence images.
 
 ### `results/`
 
-Stores processed experimental outputs.
+This directory contains processed experimental outputs.
 
 ### `data/`
 
-Data used in the experiments.
 This directory contains source code for generating the data used in the paper rather than the generated data themselves
 
 ### `Figures.ipynb`
 
-Jupyter notebook used to reproduce all figures in the paper.
+This is a jupyter notebook used to visualize the experimental results.
