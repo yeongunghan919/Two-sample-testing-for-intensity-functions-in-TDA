@@ -14,7 +14,7 @@ in the paper.
 
 ```text
 .
-├── source/                     # Core functions for test methods
+├── source/                     
 ├── simulations/
 │   ├── Circles/               
 │   ├── Instrument/         
@@ -37,7 +37,7 @@ in the paper.
 │   ├── json/ 
 │   ├── orbit_data/
 │   └── Rdata
-├── Figures.ipynb               # Notebook for generating figures
+├── Figures.ipynb              
 └── README.md
 ```
 
