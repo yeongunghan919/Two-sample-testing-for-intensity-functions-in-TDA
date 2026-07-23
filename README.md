@@ -61,7 +61,7 @@ Contains all scripts for the simulation studies.
 ### `Per_Image_testing/`
 
 Implementation of the persistence image two-sample test (Moon and Lazar, 2023).
-The implementation of the Two-stage two-sample testing method is adapted from the code of Moon and Lazar. (2023).
+The implementation of the two-stage two-sample testing method is adapted from the code of Moon and Lazar (2023).
 This directory contains the implementation of the two-stage testing method based on persistence images.
 
 ### `results/`
