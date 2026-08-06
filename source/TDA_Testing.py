@@ -29,7 +29,7 @@ def Aggtest(
     alpha=0.05,
     kernel="gaussian", # Only the Gaussian kernel is defined in this code. If you want a different kernel, you must input it yourself.
     number_bandwidths=10,
-    optimal_bandwidths=False,
+    optimal_bandwidths=True,
     weight_function=None,
     Rff_approx=False,
     B=1000,
@@ -86,6 +86,9 @@ def Aggtest(
     )
     assert number_bandwidths > 1 and type(number_bandwidths) == int
     assert B>0 and type(B)==int
+
+    if weight_function is None:
+    weight_function = lambda point: 1.0
 
     if not optimal_bandwidths:
         # Collection of bandwidths that are median-based bandwidths.
