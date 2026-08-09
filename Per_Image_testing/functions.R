@@ -60,76 +60,186 @@ pers.image = function(pd, rangex, rangey, wgt, nbins, h){
 ###############################################################
 # Functions for two-stage
 ###############################################################
-
-ts_main_fpr = function(twopi,sig,npc,nset,range,res,alpha){
-  nsig=length(sig)
-  n1=npc*nset
-  n2=npc*nset
+ts_main_fpr = function(twopi, sig, npc, nset, npair, range, res, alpha){
   
-  # take vectors
-  twopix=list()
+  nsig = length(sig)
+  
+  # divide data into nset groups
+  twopix = list()
+  
   for (ii in 1:nsig) {
-    twopix[[ii]]=list()
+    twopix[[ii]] = list()
+    
     for (jj in 1:nset) {
-      twopix[[ii]][[jj]]=array(NA, dim = c(res,res,npc))
-      for (kk in 1:npc){
-        twopix[[ii]][[jj]][,,kk]=twopi[[ii]][[(jj-1)*npc+kk]]
+      
+      twopix[[ii]][[jj]] = array(NA, dim = c(res, res, npc))
+      
+      for (kk in 1:npc) {
+        twopix[[ii]][[jj]][,,kk] =
+          twopi[[ii]][[(jj - 1) * npc + kk]]
       }
     }
   }
   
-  # filter using overall sd
-  sdoverall=array(NA,dim=c(nsig,nset,res,res))
-  tpval=array(NA,dim=c(nsig,nset,res,res))
+  # all possible pairs of groups
+  cbn = combn(1:nset, 2)
   
-  # combinations
-  cbn=combn(1:nset,2)
+  if (npair > ncol(cbn)) {
+    stop("npair exceeds the number of possible group pairs.")
+  }
+  
+  # randomly select npair pairs
+  ind = t(cbn[, sample(1:ncol(cbn), npair)])
+  
+  # storage
+  sdoverall = array(NA, dim = c(nsig, npair, res, res))
+  tpval = array(NA, dim = c(nsig, npair, res, res))
   
   for (ii in 1:nsig) {
-    ind=t(cbn[,sample(1:ncol(cbn),nset)])
-    for (jj in 1:nset) {
+    
+    for (jj in 1:npair) {
+      
+      g1 = ind[jj, 1]
+      g2 = ind[jj, 2]
+      
       for (xx in 1:res) {
         for (yy in 1:res) {
-          sdoverall[ii,jj,xx,yy]=sd( c(twopix[[ii]][[ind[jj,1]]][xx,yy,],twopix[[ii]][[ind[jj,2]]][xx,yy,]) )
           
-          tpval[ii,jj,xx,yy]=t.test(twopix[[ii]][[ind[jj,1]]][xx,yy,],twopix[[ii]][[ind[jj,2]]][xx,yy,], 
-                                    alternative=c("two.sided"), conf.level = (1-alpha))$p.value
+          sdoverall[ii,jj,xx,yy] =
+            sd(c(
+              twopix[[ii]][[g1]][xx,yy,],
+              twopix[[ii]][[g2]][xx,yy,]
+            ))
+          
+          tpval[ii,jj,xx,yy] =
+            t.test(
+              twopix[[ii]][[g1]][xx,yy,],
+              twopix[[ii]][[g2]][xx,yy,],
+              alternative = "two.sided",
+              conf.level = 1 - alpha
+            )$p.value
         }
       }
     }
   }
   
   # filtering thresholds
-  C=c(0,0.2,0.4,0.6,0.8)
+  C = c(0, 0.2, 0.4, 0.6, 0.8)
   
-  # Adjust p-values
-  pvals=array(NA,dim=c(nsig,nset,length(C)))
+  pvals = array(
+    NA,
+    dim = c(nsig, npair, length(C))
+  )
   
   for (ii in 1:nsig) {
-    for (jj in 1:nset) {
+    
+    for (jj in 1:npair) {
+      
       xgrid = 1:res
       ygrid = 1:res
-      ind=expand.grid(xgrid,ygrid)
+      ind.grid = expand.grid(xgrid, ygrid)
       
-      # make data frame
-      df.pval=data.frame(idx=ind[,1],idy=ind[,2],pval=as.vector(tpval[ii,jj,,]),oversd=as.vector(sdoverall[ii,jj,,]))
+      df.pval = data.frame(
+        idx = ind.grid[,1],
+        idy = ind.grid[,2],
+        pval = as.vector(tpval[ii,jj,,]),
+        oversd = as.vector(sdoverall[ii,jj,,])
+      )
       
-      # remove the upper triangle pixels
-      df.pval=df.pval %>%
-        mutate(ind=((idx-idy)>=0))
-      # filter 
-      df.pval.rm=df.pval[(df.pval$idx-df.pval$idy)>=0,]
-      npix=nrow(df.pval.rm)
+      # remove upper triangle
+      df.pval.rm =
+        df.pval[(df.pval$idx - df.pval$idy) >= 0,]
+      
+      npix = nrow(df.pval.rm)
       
       for (cc in 1:length(C)) {
-        df.pval.rm$sdrank= (rank(df.pval.rm$oversd)/npix)
-        df.pval.sd=df.pval.rm[df.pval.rm$sdrank>C[cc],]
-        pvals[ii,jj,cc]=(min(p.adjust(df.pval.sd$pval,method=c("BH")))<alpha)*1
+        
+        df.pval.rm$sdrank =
+          rank(df.pval.rm$oversd) / npix
+        
+        df.pval.sd =
+          df.pval.rm[df.pval.rm$sdrank > C[cc],]
+        
+        pvals[ii,jj,cc] =
+          (min(p.adjust(
+            df.pval.sd$pval,
+            method = "BH"
+          )) < alpha) * 1
       }
     }
   }
+  
   return(pvals)
 }
+# ts_main_fpr = function(twopi,sig,npc,nset,range,res,alpha){
+#   nsig=length(sig)
+#   n1=npc*nset
+#   n2=npc*nset
+#   
+#   # take vectors
+#   twopix=list()
+#   for (ii in 1:nsig) {
+#     twopix[[ii]]=list()
+#     for (jj in 1:nset) {
+#       twopix[[ii]][[jj]]=array(NA, dim = c(res,res,npc))
+#       for (kk in 1:npc){
+#         twopix[[ii]][[jj]][,,kk]=twopi[[ii]][[(jj-1)*npc+kk]]
+#       }
+#     }
+#   }
+#   
+#   # filter using overall sd
+#   sdoverall=array(NA,dim=c(nsig,nset,res,res))
+#   tpval=array(NA,dim=c(nsig,nset,res,res))
+#   
+#   # combinations
+#   cbn=combn(1:nset,2)
+#   
+#   for (ii in 1:nsig) {
+#     ind=t(cbn[,sample(1:ncol(cbn),nset)])
+#     for (jj in 1:nset) {
+#       for (xx in 1:res) {
+#         for (yy in 1:res) {
+#           sdoverall[ii,jj,xx,yy]=sd( c(twopix[[ii]][[ind[jj,1]]][xx,yy,],twopix[[ii]][[ind[jj,2]]][xx,yy,]) )
+#           
+#           tpval[ii,jj,xx,yy]=t.test(twopix[[ii]][[ind[jj,1]]][xx,yy,],twopix[[ii]][[ind[jj,2]]][xx,yy,], 
+#                                     alternative=c("two.sided"), conf.level = (1-alpha))$p.value
+#         }
+#       }
+#     }
+#   }
+#   
+#   # filtering thresholds
+#   C=c(0,0.2,0.4,0.6,0.8)
+#   
+#   # Adjust p-values
+#   pvals=array(NA,dim=c(nsig,nset,length(C)))
+#   
+#   for (ii in 1:nsig) {
+#     for (jj in 1:nset) {
+#       xgrid = 1:res
+#       ygrid = 1:res
+#       ind=expand.grid(xgrid,ygrid)
+#       
+#       # make data frame
+#       df.pval=data.frame(idx=ind[,1],idy=ind[,2],pval=as.vector(tpval[ii,jj,,]),oversd=as.vector(sdoverall[ii,jj,,]))
+#       
+#       # remove the upper triangle pixels
+#       df.pval=df.pval %>%
+#         mutate(ind=((idx-idy)>=0))
+#       # filter 
+#       df.pval.rm=df.pval[(df.pval$idx-df.pval$idy)>=0,]
+#       npix=nrow(df.pval.rm)
+#       
+#       for (cc in 1:length(C)) {
+#         df.pval.rm$sdrank= (rank(df.pval.rm$oversd)/npix)
+#         df.pval.sd=df.pval.rm[df.pval.rm$sdrank>C[cc],]
+#         pvals[ii,jj,cc]=(min(p.adjust(df.pval.sd$pval,method=c("BH")))<alpha)*1
+#       }
+#     }
+#   }
+#   return(pvals)
+# }
 
 # compute p-values for t-test
 ttestpi = function(group1,group2,res,cc=0.5) {

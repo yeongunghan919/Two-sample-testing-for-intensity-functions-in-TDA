@@ -87,8 +87,8 @@ def Aggtest(
     assert number_bandwidths > 1 and type(number_bandwidths) == int
     assert B>0 and type(B)==int
 
-    if weight_function is None:
-    weight_function = lambda point: 1.0
+    assert weight_function is not None
+
 
     if not optimal_bandwidths:
         # Collection of bandwidths that are median-based bandwidths.

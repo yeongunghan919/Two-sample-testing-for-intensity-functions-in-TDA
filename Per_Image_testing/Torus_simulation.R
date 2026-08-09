@@ -1,3 +1,4 @@
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 source("functions.R")
 
 # settings
@@ -42,5 +43,39 @@ for (n in 1:length(list_npc)){
 }
 
 rowMeans(pvals_root_power)
-saveRDS(rowMeans(pvals_root_power), "../results/simulation_results/Torus_results//Torus_PI_power_result_diffsamples.rds")
+saveRDS(rowMeans(pvals_root_power), "../results/simulation_results/Torus_results/Torus_PI_power_result_diffsamples.rds")
+
+###############################################################################
+# validity 
+sig = c(0.0)
+npc = 25
+nset = 200
+npair = 1000
+range = c(0,4)
+res = 40
+alpha = 0.05
+
+load("PI_Torus_data/data_pi_torus_root.Rdata")
+
+target_data <- torus_pi_root[6]
+
+npc   = 25
+nset  = 200    # 200 groups × 25 = 5000 PI
+npair = 1000   # random pairwise tests
+
+test_results = ts_main_fpr(
+  target_data,
+  sig,
+  npc,
+  nset,
+  npair,
+  range,
+  res,
+  alpha
+)
+
+mean(test_results[,,2])
+
+type1_error <- mean(test_results[,,2])
+saveRDS(type1_error, "../results/simulation_results/Torus_results/Torus_PI_validity_result.rds")
 
