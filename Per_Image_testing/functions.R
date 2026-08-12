@@ -60,7 +60,7 @@ pers.image = function(pd, rangex, rangey, wgt, nbins, h){
 ###############################################################
 # Functions for two-stage
 ###############################################################
-ts_main_fpr = function(twopi, sig, npc, nset, npair, range, res, alpha){
+ts_main_fpr = function(twopi, sig, npc, nset, npair, range, res, alpha,seed=40){
   
   nsig = length(sig)
   
@@ -81,15 +81,44 @@ ts_main_fpr = function(twopi, sig, npc, nset, npair, range, res, alpha){
     }
   }
   
-  # all possible pairs of groups
-  cbn = combn(1:nset, 2)
+  pairs_per_round = floor(nset / 2)
   
-  if (npair > ncol(cbn)) {
-    stop("npair exceeds the number of possible group pairs.")
+  if (npair %% pairs_per_round != 0) {
+    stop("npair must be a multiple of floor(nset / 2).")
   }
   
-  # randomly select npair pairs
-  ind = t(cbn[, sample(1:ncol(cbn), npair)])
+  nround = npair / pairs_per_round
+  
+  set.seed(seed)
+  
+  ind = matrix(
+    NA,
+    nrow = npair,
+    ncol = 2
+  )
+  
+  for (rr in 1:nround) {
+    
+    # new random shuffle in each round
+    group_ids = sample(
+      1:nset,
+      nset,
+      replace = FALSE
+    )
+    
+    # 100 disjoint pairs when nset = 200
+    pairs_r = matrix(
+      group_ids,
+      ncol = 2,
+      byrow = TRUE
+    )
+    
+    idx =
+      ((rr - 1) * pairs_per_round + 1):
+      (rr * pairs_per_round)
+    
+    ind[idx, ] = pairs_r
+  }
   
   # storage
   sdoverall = array(NA, dim = c(nsig, npair, res, res))

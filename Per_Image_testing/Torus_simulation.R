@@ -59,10 +59,6 @@ load("PI_Torus_data/data_pi_torus_root.Rdata")
 
 target_data <- torus_pi_root[6]
 
-npc   = 25
-nset  = 200    # 200 groups × 25 = 5000 PI
-npair = 1000   # random pairwise tests
-
 test_results = ts_main_fpr(
   target_data,
   sig,
@@ -74,7 +70,7 @@ test_results = ts_main_fpr(
   alpha
 )
 
-mean(test_results[,,2])
+mean(test_results[,,2]) # 0.024
 
 type1_error <- mean(test_results[,,2])
 saveRDS(type1_error, "../results/simulation_results/Torus_results/Torus_PI_validity_result.rds")
