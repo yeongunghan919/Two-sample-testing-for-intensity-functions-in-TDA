@@ -60,7 +60,7 @@ pers.image = function(pd, rangex, rangey, wgt, nbins, h){
 ###############################################################
 # Functions for two-stage
 ###############################################################
-ts_main_fpr = function(twopi, sig, npc, nset, npair, range, res, alpha,seed=40){
+ts_main_fpr_using_pair_block = function(twopi, sig, npc, nset, npair, range, res, alpha,pair_blocks,seed=40){
   
   nsig = length(sig)
   
@@ -68,58 +68,29 @@ ts_main_fpr = function(twopi, sig, npc, nset, npair, range, res, alpha,seed=40){
   twopix = list()
   
   for (ii in 1:nsig) {
+    
     twopix[[ii]] = list()
     
     for (jj in 1:nset) {
       
-      twopix[[ii]][[jj]] = array(NA, dim = c(res, res, npc))
+      twopix[[ii]][[jj]] = array(
+        NA,
+        dim = c(res, res, npc)
+      )
       
       for (kk in 1:npc) {
+        
         twopix[[ii]][[jj]][,,kk] =
           twopi[[ii]][[(jj - 1) * npc + kk]]
       }
     }
   }
   
-  pairs_per_round = floor(nset / 2)
+  # Python pair is 0-based.
+  # Convert to R 1-based group indices.
+  ind = pair_blocks[1:npair, ] + 1
   
-  if (npair %% pairs_per_round != 0) {
-    stop("npair must be a multiple of floor(nset / 2).")
-  }
-  
-  nround = npair / pairs_per_round
-  
-  set.seed(seed)
-  
-  ind = matrix(
-    NA,
-    nrow = npair,
-    ncol = 2
-  )
-  
-  for (rr in 1:nround) {
-    
-    # new random shuffle in each round
-    group_ids = sample(
-      1:nset,
-      nset,
-      replace = FALSE
-    )
-    
-    # 100 disjoint pairs when nset = 200
-    pairs_r = matrix(
-      group_ids,
-      ncol = 2,
-      byrow = TRUE
-    )
-    
-    idx =
-      ((rr - 1) * pairs_per_round + 1):
-      (rr * pairs_per_round)
-    
-    ind[idx, ] = pairs_r
-  }
-  
+
   # storage
   sdoverall = array(NA, dim = c(nsig, npair, res, res))
   tpval = array(NA, dim = c(nsig, npair, res, res))
@@ -200,75 +171,6 @@ ts_main_fpr = function(twopi, sig, npc, nset, npair, range, res, alpha,seed=40){
   
   return(pvals)
 }
-# ts_main_fpr = function(twopi,sig,npc,nset,range,res,alpha){
-#   nsig=length(sig)
-#   n1=npc*nset
-#   n2=npc*nset
-#   
-#   # take vectors
-#   twopix=list()
-#   for (ii in 1:nsig) {
-#     twopix[[ii]]=list()
-#     for (jj in 1:nset) {
-#       twopix[[ii]][[jj]]=array(NA, dim = c(res,res,npc))
-#       for (kk in 1:npc){
-#         twopix[[ii]][[jj]][,,kk]=twopi[[ii]][[(jj-1)*npc+kk]]
-#       }
-#     }
-#   }
-#   
-#   # filter using overall sd
-#   sdoverall=array(NA,dim=c(nsig,nset,res,res))
-#   tpval=array(NA,dim=c(nsig,nset,res,res))
-#   
-#   # combinations
-#   cbn=combn(1:nset,2)
-#   
-#   for (ii in 1:nsig) {
-#     ind=t(cbn[,sample(1:ncol(cbn),nset)])
-#     for (jj in 1:nset) {
-#       for (xx in 1:res) {
-#         for (yy in 1:res) {
-#           sdoverall[ii,jj,xx,yy]=sd( c(twopix[[ii]][[ind[jj,1]]][xx,yy,],twopix[[ii]][[ind[jj,2]]][xx,yy,]) )
-#           
-#           tpval[ii,jj,xx,yy]=t.test(twopix[[ii]][[ind[jj,1]]][xx,yy,],twopix[[ii]][[ind[jj,2]]][xx,yy,], 
-#                                     alternative=c("two.sided"), conf.level = (1-alpha))$p.value
-#         }
-#       }
-#     }
-#   }
-#   
-#   # filtering thresholds
-#   C=c(0,0.2,0.4,0.6,0.8)
-#   
-#   # Adjust p-values
-#   pvals=array(NA,dim=c(nsig,nset,length(C)))
-#   
-#   for (ii in 1:nsig) {
-#     for (jj in 1:nset) {
-#       xgrid = 1:res
-#       ygrid = 1:res
-#       ind=expand.grid(xgrid,ygrid)
-#       
-#       # make data frame
-#       df.pval=data.frame(idx=ind[,1],idy=ind[,2],pval=as.vector(tpval[ii,jj,,]),oversd=as.vector(sdoverall[ii,jj,,]))
-#       
-#       # remove the upper triangle pixels
-#       df.pval=df.pval %>%
-#         mutate(ind=((idx-idy)>=0))
-#       # filter 
-#       df.pval.rm=df.pval[(df.pval$idx-df.pval$idy)>=0,]
-#       npix=nrow(df.pval.rm)
-#       
-#       for (cc in 1:length(C)) {
-#         df.pval.rm$sdrank= (rank(df.pval.rm$oversd)/npix)
-#         df.pval.sd=df.pval.rm[df.pval.rm$sdrank>C[cc],]
-#         pvals[ii,jj,cc]=(min(p.adjust(df.pval.sd$pval,method=c("BH")))<alpha)*1
-#       }
-#     }
-#   }
-#   return(pvals)
-# }
 
 # compute p-values for t-test
 ttestpi = function(group1,group2,res,cc=0.5) {
@@ -337,6 +239,102 @@ ts_main_power = function(onepi,twopi,sig,npc,nset,range,res,alpha){
     }
   }
   
+  filterfun = function(ind,ii,jj,onepix,twopix,alpha){
+    xx=ind[1]
+    yy=ind[2]
+    sdres=sd( c(onepix[[ii]][[jj]][xx,yy,],twopix[[ii]][[jj]][xx,yy,]) )
+    eps=1e-12
+    if (sdres<eps){
+      if (abs(mean(onepix[[ii]][[jj]][xx,yy,])-mean(twopix[[ii]][[jj]][xx,yy,]))<eps){
+        tpvalres = 1 
+      } else{
+        tpvalres = 0
+      }
+    } else{
+      tpvalres=t.test(onepix[[ii]][[jj]][xx,yy,],twopix[[ii]][[jj]][xx,yy,], 
+                      alternative=c("two.sided"), conf.level = (1-alpha))$p.value}
+    return(c(sdres, tpvalres))
+  }
+  
+  xgrid = 1:res
+  ygrid = 1:res
+  ind=expand.grid(xgrid,ygrid)
+  
+  sdoverall=array(NA,dim=c(nsig,nset,res*res))
+  tpval=array(NA,dim=c(nsig,nset,res*res))
+  
+  # filter using overall sd
+  for (ii in 1:nsig) {
+    for (jj in 1:nset) {
+      if(jj%%500==0) print(jj)
+      temp=t(apply(ind,1,filterfun,ii,jj,onepix,twopix,alpha))
+      sdoverall[ii,jj,]=temp[,1]
+      tpval[ii,jj,]=temp[,2]
+    }
+  }
+  
+  # filtering thresholds
+  C=c(0,0.2,0.4,0.6,0.8)
+  
+  # Adjust p-values
+  pvals=array(NA,dim=c(nsig,nset,length(C)))
+  
+  for (ii in 1:nsig) {
+    for (jj in 1:nset) {
+      # make data frame
+      df.pval=data.frame(idx=ind[,1],idy=ind[,2],pval=tpval[ii,jj,],oversd=sdoverall[ii,jj,])
+      
+      # remove the upper triangle pixels
+      df.pval=df.pval %>%
+        mutate(ind=((idx-idy)>=0))
+      # filter 
+      df.pval.rm=df.pval[(df.pval$idx-df.pval$idy)>=0,]
+      npix=nrow(df.pval.rm)
+      
+      for (cc in 1:length(C)) {
+        df.pval.rm$sdrank= (rank(df.pval.rm$oversd)/npix)
+        df.pval.sd=df.pval.rm[df.pval.rm$sdrank>C[cc],]
+        pvals[ii,jj,cc]=(min(p.adjust(df.pval.sd$pval,method=c("BH")))<alpha)*1
+      }
+    }
+  }
+  return(pvals)
+}
+
+
+ts_main_power_using_pair_block = function(
+    onepi, twopi, sig, npc, nset,
+    range, res, alpha,
+    pair_blocks
+){
+  nsig = length(sig)
+  
+  onepix = list()
+  twopix = list()
+  
+  for (ii in 1:nsig) {
+    
+    onepix[[ii]] = list()
+    twopix[[ii]] = list()
+    
+    for (jj in 1:nset) {
+      
+      onepix[[ii]][[jj]] = array(NA, dim = c(res, res, npc))
+      twopix[[ii]][[jj]] = array(NA, dim = c(res, res, npc))
+      
+      block_x = pair_blocks[jj, 1]
+      block_y = pair_blocks[jj, 2]
+      
+      for (kk in 1:npc) {
+        
+        onepix[[ii]][[jj]][,,kk] =
+          onepi[[ii]][[block_x * npc + kk]]
+        
+        twopix[[ii]][[jj]][,,kk] =
+          twopi[[ii]][[block_y * npc + kk]]
+      }
+    }
+  }
   filterfun = function(ind,ii,jj,onepix,twopix,alpha){
     xx=ind[1]
     yy=ind[2]

@@ -13,7 +13,7 @@ from persim.landscapes import (
 )
 import random
 from ripser import ripser
-
+from itertools import product
 
 """
 ================================================================================
@@ -89,35 +89,79 @@ def Aggtest(
 
     assert weight_function is not None
 
-
     if not optimal_bandwidths:
-        # Collection of bandwidths that are median-based bandwidths.
+        # Coordinate-wise median-based bandwidth collections
         def compute_bandwidths(distances, number_bandwidths):
             if np.min(distances) < 10 ** (-1):
                 d = np.sort(distances)
-                lambda_min = np.maximum(d[int(np.floor(len(d) * 0.05))], 10 ** (-1))
+                lambda_min = np.maximum(
+                    d[int(np.floor(len(d) * 0.05))],
+                    10 ** (-1)
+                )
             else:
                 lambda_min = np.min(distances)
             lambda_min = lambda_min / 2
-            lambda_max = np.maximum(np.max(distances), 3 * 10 ** (-1))
+            lambda_max = np.maximum(
+                np.max(distances),
+                3 * 10 ** (-1)
+            )
             lambda_max = lambda_max * 2
-            power = (lambda_max / lambda_min) ** (1 / (number_bandwidths - 1))
-            bandwidths = np.array([power ** i * lambda_min for i in range(number_bandwidths)])
+            power = (lambda_max / lambda_min) ** (
+                1 / (number_bandwidths - 1)
+            )
+            bandwidths = np.array([
+                power ** i * lambda_min
+                for i in range(number_bandwidths)
+            ])
             return bandwidths
         max_samples = 100
-        all_dists = []
+        all_dists_1 = []
+        all_dists_2 = []
         for diagramX in X[:max_samples]:
             for diagramY in Y[:max_samples]:
-                d = scipy.spatial.distance.cdist(diagramX, diagramY, "euclidean").reshape(-1)
-                all_dists.append(d)
-        distances = np.concatenate(all_dists)
-        bandwidths = compute_bandwidths(distances,number_bandwidths)
+                # Skip empty diagrams
+                if len(diagramX) == 0 or len(diagramY) == 0:
+                    continue
+                # Coordinate 1 pairwise distances
+                d1 = np.abs(
+                    diagramX[:, 0][:, None]
+                    - diagramY[:, 0][None, :]
+                ).reshape(-1)
+                # Coordinate 2 pairwise distances
+                d2 = np.abs(
+                    diagramX[:, 1][:, None]
+                    - diagramY[:, 1][None, :]
+                ).reshape(-1)
+
+                all_dists_1.append(d1)
+                all_dists_2.append(d2)
+        distances_1 = np.concatenate(all_dists_1)
+        distances_2 = np.concatenate(all_dists_2)
+        bandwidths_1 = compute_bandwidths(
+            distances_1,
+            number_bandwidths
+        )
+        bandwidths_2 = compute_bandwidths(
+            distances_2,
+            number_bandwidths
+        )
+        # Cartesian product:
+        # (lambda_1, lambda_2)
+        bandwidths = np.array(
+            list(product(bandwidths_1, bandwidths_2)),
+            dtype=float
+        )
+        number_bandwidths = len(bandwidths)
 
 
     else: #optimal bandwidth collection which ensures the minimax optimality up to an iterated logarithm factor.
-        T = math.ceil(math.log2((n+m)/(math.log(math.log(n+m)))))
-        bandwidths = np.array([2**(-i) for i in range(1,T+1)])
-        number_bandwidths = T
+        T = math.ceil(math.log2((n + m) / math.log(math.log(n + m))))
+
+        bandwidth_1d = np.array([2**(-i) for i in range(1, T + 1)])
+
+        bandwidths = np.array(list(product(bandwidth_1d, repeat=2)))
+
+        number_bandwidths = len(bandwidths)
 
     # Setup permutations   #Efficient permutation method (Schrab et al., 2023, p. 51)
     rs = np.random.RandomState(seed)
@@ -190,8 +234,9 @@ def Aggtest(
 
 
 
-def gaussian_kernel_func(x,y,bandwidth):
-            return np.exp(-np.dot(x-y,x-y)/(2*bandwidth**2))
+def gaussian_kernel_func(x, y, bandwidth):
+    bandwidth = np.asarray(bandwidth)
+    return np.exp(-0.5 * np.sum(((x - y) / bandwidth)**2))
 
 def Linear(diagram_1, diagram_2, vec_weight_1, vec_weight_2,kernel,bandwidth):
     """
@@ -246,7 +291,7 @@ def Mat_gram(list_pd,bandwidth,weight_function,kernel,seed,Rff_approx=False,num_
     """
     list_pd: List of length (n+m) which contains all input persistence diagrams
     kernel : String representing the kernel function
-    bandwidth : Flaot representing the bandwidth of kernel function
+    bandwidth : a list representing the bandwidth of kernel function
     weight_function : Function, the weight_function for computing weight of each point in each diagram.
     Rff_approx : Boolean, 1 -> Random Fourier Feature approximation for computing the Linear-kernel value between two diagrams.
     num_rff : The number of samples for the Rff approximation
@@ -260,7 +305,7 @@ def Mat_gram(list_pd,bandwidth,weight_function,kernel,seed,Rff_approx=False,num_
     if Rff_approx and kernel=='gaussian':
         mat_rff = np.empty((num_pd, num_rff))
         Z= np.random.multivariate_normal(
-                [0.0, 0.0], [[bandwidth ** (-2.0), 0.0], [0.0, bandwidth ** (-2.0)]], num_rff)
+                [0.0, 0.0], [[bandwidth[0] ** (-2.0), 0.0], [0.0, bandwidth[1] ** (-2.0)]], num_rff)
         b= np.random.uniform(0.0,2.0*math.pi,num_rff)
         for k in range(num_pd):
             mat_rff[k,:]= np.dot(weight_values[k],np.sqrt(2)*np.cos(np.inner(list_pd[k],Z)+b))
